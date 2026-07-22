@@ -6,8 +6,10 @@ import axios from "axios";
 // separate in case the two ever need to diverge again. Override with
 // VITE_QUESTION_API_URL if needed.
 const questionAxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_QUESTION_API_URL || "https://math-scratch.onrender.com/api",
-  timeout: 10000,
+  baseURL:
+    import.meta.env.VITE_QUESTION_API_URL ||
+    "https://math-scratch.onrender.com/api",
+  timeout: 30000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -22,7 +24,7 @@ questionAxiosInstance.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // Response Interceptor (Handle Errors) — same pattern as axiosInstance.js
@@ -31,7 +33,7 @@ questionAxiosInstance.interceptors.response.use(
   (error) => {
     const message = error?.response?.data?.message || error.message;
     return Promise.reject(message);
-  }
+  },
 );
 
 export default questionAxiosInstance;
