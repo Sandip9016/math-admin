@@ -18,6 +18,7 @@ import Blank from "./pages/Blank";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
+import QuestionList from "./pages/Questions/QuestionList";
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/profile" element={<UserProfiles />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/notification" element={<Notification/>} />
+            <Route path="/questions" element={<QuestionList />} />
             <Route path="/blank" element={<Blank />} />
 
             {/* Forms */}
