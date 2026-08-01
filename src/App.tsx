@@ -18,6 +18,7 @@ import Blank from "./pages/Blank";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
+import PerformanceDashboard from "./pages/Dashboard/PerformanceDashboard";
 import QuestionList from "./pages/Questions/QuestionList";
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
           {/* Dashboard Layout */}
           <Route element={<AppLayout />}>
             <Route index path="/" element={<Home />} />
+            <Route path="/performance-dashboard" element={<PerformanceDashboard />} />
 
             {/* Others Page */}
             <Route path="/profile" element={<UserProfiles />} />

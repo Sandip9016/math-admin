@@ -8,7 +8,7 @@ import axios from "axios";
 const questionAxiosInstance = axios.create({
   baseURL:
     import.meta.env.VITE_QUESTION_API_URL ||
-    "https://math-scratch.onrender.com/api",
+    "http://13.203.232.239:3000/api",
   timeout: 300000,
   headers: {
     "Content-Type": "application/json",
