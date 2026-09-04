@@ -8,7 +8,7 @@ import {
   ChevronDownIcon,
   GridIcon,
   HorizontaLDots,
-  // ListIcon,
+  ListIcon,
   // PageIcon,
   // PieChartIcon,
   // PlugInIcon,
@@ -32,6 +32,7 @@ const navItems: NavItem[] = [
     subItems: [
       { name: "Ecommerce", path: "/", pro: false },
       { name: "Performance", path: "/performance-dashboard", pro: false },
+      { name: "Acquisition", path: "/acquisition-dashboard", pro: false },
     ],
   },
   {
@@ -63,6 +64,11 @@ const navItems: NavItem[] = [
     icon: <TableIcon />,
     name: "Questions",
     path: "/questions",
+  },
+  {
+    icon: <ListIcon />,
+    name: "Game Logs",
+    path: "/game-logs",
   },
   // {
   //   name: "Pages",
