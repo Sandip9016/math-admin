@@ -16,3 +16,17 @@ export const getGameLogs = (params = {}) => {
 export const getGameLogDetail = (type, validateId) => {
   return api.get(`/admin/game-logs/${type}/${validateId}`);
 };
+
+/**
+ * Build the server download URL for a game log.
+ * @param {string} playerId
+ * @param {"pvp"|"computer"} type
+ * @param {string} validateId
+ */
+export const getGameLogDownloadUrl = (playerId, type, validateId) => {
+  const baseUrl =
+    import.meta.env.VITE_API_URL || "http://13.203.232.239:3000/api";
+  return `${baseUrl}/gameValidation/${encodeURIComponent(
+    playerId
+  )}/download/${encodeURIComponent(type)}/${encodeURIComponent(validateId)}`;
+};

@@ -1,6 +1,5 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
 import PageMeta from "../../components/common/PageMeta";
@@ -15,12 +14,14 @@ import {
   TableCell,
 } from "../../components/ui/table";
 import { useToast } from "../../context/ToastContext";
-import { getGameLogs } from "../../api/gameLogs.api";
+import { getGameLogDownloadUrl, getGameLogs } from "../../api/gameLogs.api";
 
 interface GameLogRow {
   logType: "pvp" | "computer";
   validateId: string;
   gameId?: string;
+  player1Id?: string;
+  player2Id?: string;
   player1Username?: string;
   player2Username?: string;
   playerId?: string;
@@ -127,7 +128,6 @@ function resolvePresetRange(option: string): [Date, Date] | null {
 
 export default function GameLogsList() {
   const { showToast } = useToast();
-  const navigate = useNavigate();
 
   // Normal (unfiltered) server-paginated results.
   const [items, setItems] = useState<GameLogRow[]>([]);
@@ -515,14 +515,37 @@ export default function GameLogsList() {
                           {formatDate(g.gameStartTime)}
                         </TableCell>
                         <TableCell className="px-4 py-3 text-sm">
-                          <button
+                          <a
                             className="text-brand-500 hover:underline"
-                            onClick={() =>
-                              navigate(`/game-logs/${g.logType}/${g.validateId}`)
-                            }
+                            href={(() => {
+                              const playerId =
+                                g.logType === "pvp"
+                                  ? g.player1Id || g.player2Id
+                                  : g.playerId;
+                              return playerId
+                                ? getGameLogDownloadUrl(
+                                    playerId,
+                                    g.logType,
+                                    g.validateId
+                                  )
+                                : undefined;
+                            })()}
+                            onClick={(event) => {
+                              const hasPlayerId =
+                                g.logType === "pvp"
+                                  ? !!(g.player1Id || g.player2Id)
+                                  : !!g.playerId;
+                              if (!hasPlayerId) {
+                                event.preventDefault();
+                                showToast(
+                                  "Player ID is required to download this game log",
+                                  "error"
+                                );
+                              }
+                            }}
                           >
-                            View
-                          </button>
+                            Download
+                          </a>
                         </TableCell>
                       </TableRow>
                     );
