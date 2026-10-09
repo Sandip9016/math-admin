@@ -360,6 +360,16 @@ const emptyForm: FormState = {
   finalLevel: "",
 };
 
+// Dropdown values are the full names the API stores.
+export const symbolOptions = [
+  { value: "Sum", label: "Sum (+)" },
+  { value: "Difference", label: "Difference (-)" },
+  { value: "Product", label: "Product (*)" },
+  { value: "Quotient", label: "Quotient (/)" },
+  { value: "Remainder", label: "Remainder (%)" },
+  { value: "Power", label: "Power (^)" },
+];
+
 const difficultyOptions = [
   { value: "easy", label: "Easy" },
   { value: "medium", label: "Medium" },
@@ -374,6 +384,10 @@ export default function QuestionFormModal({ questionId, onClose, onSaved }: Prop
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  // edit mode: values as loaded, used to send only changed fields
+  const [original, setOriginal] = useState<FormState>(emptyForm);
+  const [active, setActive] = useState(true);
+  const [origActive, setOrigActive] = useState(true);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -381,7 +395,7 @@ export default function QuestionFormModal({ questionId, onClose, onSaved }: Prop
       try {
         const res: any = await getQuestionById(questionId as string);
         const q = res.question;
-        setForm({
+        const loaded: FormState = {
           questionLevel: q.questionLevel ?? "",
           difficulty: q.difficulty ?? "",
           question: q.question ?? "",
@@ -392,7 +406,11 @@ export default function QuestionFormModal({ questionId, onClose, onSaved }: Prop
           valid: q.valid ?? "",
           combo: q.combo ?? "",
           finalLevel: String(q.finalLevel ?? ""),
-        });
+        };
+        setForm(loaded);
+        setOriginal(loaded);
+        setActive(q.active !== false);
+        setOrigActive(q.active !== false);
       } catch (err) {
         showToast(typeof err === "string" ? err : "Failed to load question", "error");
         onClose();
@@ -405,6 +423,15 @@ export default function QuestionFormModal({ questionId, onClose, onSaved }: Prop
 
   const update = (field: keyof FormState, value: string) => {
     setForm((f) => ({ ...f, [field]: value }));
+    // Level 0 -> 1+ enables the question (it then shows in the main table).
+    if (
+      isEdit &&
+      field === "finalLevel" &&
+      Number(value) > 0 &&
+      Number(original.finalLevel) === 0
+    ) {
+      setActive(true);
+    }
   };
 
   const validate = (): string[] => {
@@ -414,13 +441,19 @@ export default function QuestionFormModal({ questionId, onClose, onSaved }: Prop
     if (form.input2 === "" || isNaN(Number(form.input2))) errs.push("Input2 must be a number");
     if (form.answer === "" || isNaN(Number(form.answer))) errs.push("Answer must be a number");
     if (!form.symbol.trim()) errs.push("Symbol is required");
+    // edit: 0 is allowed and means disabled. add: must be 1-10.
+    const minLevel = isEdit ? 0 : 1;
     if (
       form.finalLevel === "" ||
       isNaN(Number(form.finalLevel)) ||
-      Number(form.finalLevel) < 1 ||
+      Number(form.finalLevel) < minLevel ||
       Number(form.finalLevel) > 10
     ) {
-      errs.push("Final Level must be a number between 1 and 10");
+      errs.push(
+        isEdit
+          ? "Final Level must be a number between 0 and 10 (0 = disabled)"
+          : "Final Level must be a number between 1 and 10"
+      );
     }
     return errs;
   };
@@ -432,11 +465,8 @@ export default function QuestionFormModal({ questionId, onClose, onSaved }: Prop
       return;
     }
     setErrors([]);
-    setSaving(true);
 
-    // questionKey intentionally omitted — backend auto-generates it.
-    // symbol is sent raw (+ - * / % ^); backend handles conversion.
-    const payload = {
+    const all: Record<keyof FormState, string | number> = {
       questionLevel: form.questionLevel,
       difficulty: form.difficulty,
       question: form.question,
@@ -448,7 +478,32 @@ export default function QuestionFormModal({ questionId, onClose, onSaved }: Prop
       combo: form.combo,
       finalLevel: Number(form.finalLevel),
     };
+    const payload: Record<string, string | number | boolean> = {};
+    if (isEdit) {
+      // send only the fields that changed
+      (Object.keys(form) as (keyof FormState)[]).forEach((k) => {
+        if (form[k] !== original[k]) payload[k] = all[k];
+      });
+      // Level 0 = disabled. The edit route does not apply that rule itself.
+      const level = Number(form.finalLevel);
+      const wantActive = level === 0 ? false : active;
+      if (wantActive !== origActive) {
+        payload.active = wantActive;
+        if (wantActive) payload.finalLevel = level; // enabling needs level >= 1
+      }
+      if (Object.keys(payload).length === 0) {
+        showToast("No changes to save.", "info");
+        return;
+      }
+    } else {
+      // questionKey omitted — backend auto-generates it. Optional blanks omitted.
+      Object.assign(payload, all);
+      (["questionLevel", "question", "valid", "combo"] as const).forEach((k) => {
+        if (all[k] === "") delete payload[k];
+      });
+    }
 
+    setSaving(true);
     try {
       if (isEdit) {
         await updateQuestion(questionId as string, payload);
@@ -459,20 +514,9 @@ export default function QuestionFormModal({ questionId, onClose, onSaved }: Prop
       }
       onSaved();
     } catch (err: unknown) {
-      // 409 duplicate response shape: { success: false, message: "Duplicate question: ..." }
-      // Always treated as an error, never a success toast — surfaced in the form's error box.
-      const status = (err as { status?: number; response?: { status?: number } })?.status
-        ?? (err as { response?: { status?: number } })?.response?.status;
-      const message =
-        (err as { message?: string })?.message ||
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (typeof err === "string" ? err : "Save failed");
-
-      if (status === 409) {
-        setErrors([message || "Duplicate question."]);
-      } else {
-        setErrors([message]);
-      }
+      // Interceptor rejects with a string; field errors are joined by "\n".
+      const message = typeof err === "string" ? err : "Save failed";
+      setErrors(message.split("\n"));
     } finally {
       setSaving(false);
     }
@@ -519,10 +563,10 @@ export default function QuestionFormModal({ questionId, onClose, onSaved }: Prop
                 />
               </div>
               <div>
-                <Label>Final Level (1-10) *</Label>
+                <Label>{isEdit ? "Final Level (0 = disabled, max 10) *" : "Final Level (1-10) *"}</Label>
                 <Input
                   type="number"
-                  min="1"
+                  min={isEdit ? "0" : "1"}
                   max="10"
                   value={form.finalLevel}
                   onChange={(e) => update("finalLevel", e.target.value)}
@@ -582,6 +626,25 @@ export default function QuestionFormModal({ questionId, onClose, onSaved }: Prop
                   onChange={(e) => update("combo", e.target.value)}
                 />
               </div>
+              {isEdit && (
+                <div className="sm:col-span-2">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={Number(form.finalLevel) === 0 ? false : active}
+                      disabled={Number(form.finalLevel) === 0}
+                      onChange={(e) => setActive(e.target.checked)}
+                    />
+                    Active (used in games)
+                  </label>
+                  {!origActive && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      This question is disabled. Set Final Level to 1 or higher to
+                      enable it.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="mt-6 flex justify-end gap-3">
@@ -598,4 +661,3 @@ export default function QuestionFormModal({ questionId, onClose, onSaved }: Prop
     </Modal>
   );
 }
-

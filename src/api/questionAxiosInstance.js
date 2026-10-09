@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getToken, handleAuthError } from "./authSession";
 
 // Separate instance for Question admin routes. Question admin routes now
 // live on the same backend (Render) as the rest of the app — the old
@@ -18,7 +19,7 @@ const questionAxiosInstance = axios.create({
 // Request Interceptor (Attach Token) — same pattern as axiosInstance.js
 questionAxiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -31,7 +32,21 @@ questionAxiosInstance.interceptors.request.use(
 questionAxiosInstance.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    const message = error?.response?.data?.message || error.message;
+    handleAuthError(error);
+    const data = error?.response?.data;
+    let message = data?.message || error.message;
+    // 400 validation: show every field error (one per line).
+    if (Array.isArray(data?.errors) && data.errors.length > 0) {
+      message = data.errors.join("\n");
+    } else if (error?.response?.status === 409) {
+      // server message says why (duplicate, deleted, not deleted)
+      const st = data?.existingStatus;
+      message = data?.message
+        ? st
+          ? `${data.message} (existing question is ${st})`
+          : data.message
+        : "This question already exists";
+    }
     return Promise.reject(message);
   },
 );

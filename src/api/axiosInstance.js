@@ -35,6 +35,7 @@
 
 
 import axios from "axios";
+import { getToken, handleAuthError } from "./authSession";
 
 const axiosInstance = axios.create({
   baseURL:
@@ -48,7 +49,7 @@ const axiosInstance = axios.create({
 // Request Interceptor (Attach Token)
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -61,6 +62,7 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    handleAuthError(error);
     const message = error?.response?.data?.message || error.message;
     return Promise.reject(message);
   },

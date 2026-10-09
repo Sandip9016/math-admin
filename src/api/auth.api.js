@@ -3,6 +3,11 @@ import api from "./axiosInstance";
 
 
 
+// Admin login -> { token, admin: { id }, ... }
+export const loginAdmin = (id, password) => {
+  return api.post("/admin/auth/login", { id, password });
+};
+
 // Delete user by admin
 export const deleteUserbyAdmin = (userId) => {
   return api.delete(`/auth/admin/delete-user/${userId}`);

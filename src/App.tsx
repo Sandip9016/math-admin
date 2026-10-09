@@ -100,6 +100,7 @@ import AcquisitionDashboard from "./pages/Dashboard/AcquisitionDashboard";
 import QuestionList from "./pages/Questions/QuestionList";
 import GameLogsList from "./pages/GameLogs/GameLogsList";
 import GameLogDetail from "./pages/GameLogs/GameLogDetail";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 export default function App() {
   return (
@@ -108,6 +109,7 @@ export default function App() {
         <ScrollToTop />
         <Routes>
           {/* Dashboard Layout */}
+          <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route index path="/" element={<Home />} />
             <Route path="/performance-dashboard" element={<PerformanceDashboard />} />
@@ -139,6 +141,7 @@ export default function App() {
             {/* Charts */}
             <Route path="/line-chart" element={<LineChart />} />
             <Route path="/bar-chart" element={<BarChart />} />
+          </Route>
           </Route>
 
           {/* Auth Layout */}

@@ -1,18 +1,32 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { Navigate, useNavigate } from "react-router";
 import {  EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
 import Button from "../ui/button/Button";
+import { loginAdmin } from "../../api/auth.api";
+import { TOKEN_KEY, getToken } from "../../api/authSession";
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
-  const [email, setEmail] = useState("");
+  const [adminId, setAdminId] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  // show "session expired" message left by the 401 handler
+  const [error, setError] = useState(
+    () => sessionStorage.getItem("adminLogoutReason") || ""
+  );
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    sessionStorage.removeItem("adminLogoutReason");
+  }, []);
+
+  // already logged in -> skip login page
+  if (getToken()) return <Navigate to="/" replace />;
+
   return (
     <div className="flex flex-col flex-1">
       {/* <div className="w-full max-w-md pt-10 mx-auto">
@@ -31,7 +45,7 @@ export default function SignInForm() {
               Sign In
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Enter your email and password to sign in!
+              Enter your id and password to sign in!
             </p>
           </div>
           <div>
@@ -88,27 +102,42 @@ export default function SignInForm() {
               </div>
             </div> */}
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
+                if (loading) return;
                 setError("");
-                // simple client-side check
-                if (email === "test@gmail.com" && password === "Test@123") {
-                  navigate("/");
-                } else {
-                  setError("Invalid email or password");
+                if (!adminId.trim() || !password) {
+                  setError("Please enter your id and password");
+                  return;
+                }
+                try {
+                  setLoading(true);
+                  // interceptor unwraps response.data
+                  const res: any = await loginAdmin(adminId.trim(), password);
+                  sessionStorage.setItem(TOKEN_KEY, res.token);
+                  navigate("/", { replace: true });
+                } catch (err: any) {
+                  // interceptor rejects with server message string
+                  setError(
+                    typeof err === "string" && err !== "Network Error"
+                      ? err
+                      : "Service unavailable. Please try again shortly."
+                  );
+                } finally {
+                  setLoading(false);
                 }
               }}
             >
               <div className="space-y-6">
                 <div>
                   <Label>
-                    Email <span className="text-error-500">*</span>{" "}
+                    Id <span className="text-error-500">*</span>{" "}
                   </Label>
                   <Input
-                    placeholder="info@gmail.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    type="email"
+                    placeholder="Enter your id"
+                    value={adminId}
+                    onChange={(e) => setAdminId(e.target.value)}
+                    type="text"
                   />
                 </div>
                 <div>
@@ -149,8 +178,8 @@ export default function SignInForm() {
                   </Link> */}
                 </div>
                 <div>
-                  <Button className="w-full" size="sm">
-                    Sign in
+                  <Button className="w-full" size="sm" disabled={loading}>
+                    {loading ? "Signing in..." : "Sign in"}
                   </Button>
                 </div>
               </div>

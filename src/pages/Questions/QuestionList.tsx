@@ -17,9 +17,15 @@ import { useToast } from "../../context/ToastContext";
 import {
   getQuestions,
   deleteQuestion,
+  restoreQuestion,
+  enableQuestion,
+  disableQuestion,
   downloadQuestionsExport,
 } from "../../api/question.api";
-import QuestionFormModal from "../../components/questions/QuestionFormModal";
+import { PencilIcon, TrashBinIcon, PieChartIcon } from "../../icons";
+import QuestionFormModal, {
+  symbolOptions,
+} from "../../components/questions/QuestionFormModal";
 import QuestionAnalyticsModal from "../../components/questions/QuestionAnalyticsModal";
 import QuestionImportModal from "../../components/questions/QuestionImportModal";
 
@@ -35,18 +41,47 @@ interface QuestionRow {
   symbol: string;
   finalLevel: number;
   active: boolean;
+  status: "enabled" | "disabled" | "deleted";
 }
 
+// "" = All (enabled + disabled). Deleted hidden unless Deleted tab.
+const statusTabs = [
+  { value: "", label: "All" },
+  { value: "enabled", label: "Enabled" },
+  { value: "disabled", label: "Disabled" },
+  { value: "deleted", label: "Deleted" },
+];
+
+const statusBadge: Record<string, { cls: string; label: string }> = {
+  enabled: {
+    cls: "bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400",
+    label: "Enabled",
+  },
+  disabled: {
+    cls: "bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400",
+    label: "Disabled",
+  },
+  deleted: {
+    cls: "bg-error-50 text-error-600 dark:bg-error-500/15 dark:text-error-400",
+    label: "Deleted",
+  },
+};
+
 const difficultyOptions = [
+  { value: "", label: "All difficulties" },
   { value: "easy", label: "Easy" },
   { value: "medium", label: "Medium" },
   { value: "hard", label: "Hard" },
 ];
 
-const finalLevelOptions = Array.from({ length: 10 }, (_, i) => ({
-  value: String(i + 1),
-  label: `Level ${i + 1}`,
-}));
+// "All" has value "" so a chosen filter can be cleared again.
+const finalLevelOptions = [
+  { value: "", label: "All levels" },
+  ...Array.from({ length: 11 }, (_, i) => ({
+    value: String(i),
+    label: i === 0 ? "Level 0 (disabled)" : `Level ${i}`,
+  })),
+];
 
 export default function QuestionList() {
   const { showToast } = useToast();
@@ -63,7 +98,8 @@ export default function QuestionList() {
   const [search, setSearch] = useState("");
   const [difficulty, setDifficulty] = useState("");
   const [finalLevel, setFinalLevel] = useState("");
-  const [showInactive, setShowInactive] = useState(false);
+  const [symbol, setSymbol] = useState("");
+  const [status, setStatus] = useState("");
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -80,8 +116,9 @@ export default function QuestionList() {
       const params: Record<string, string | number> = { page, limit };
       if (search) params.search = search;
       if (difficulty) params.difficulty = difficulty;
-      if (finalLevel) params.finalLevel = finalLevel;
-      if (showInactive) params.active = "false";
+      if (finalLevel !== "") params.finalLevel = finalLevel;
+      if (symbol) params.symbol = symbol;
+      if (status) params.status = status;
 
       const res: any = await getQuestions(params);
       setItems(res.items || []);
@@ -93,7 +130,7 @@ export default function QuestionList() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, search, difficulty, finalLevel, showInactive]);
+  }, [page, limit, search, difficulty, finalLevel, symbol, status]);
 
   useEffect(() => {
     fetchQuestions();
@@ -112,11 +149,34 @@ export default function QuestionList() {
     if (!deleteTarget) return;
     try {
       await deleteQuestion(deleteTarget._id);
-      showToast("Question deactivated", "success");
+      showToast("Question deleted", "success");
       setDeleteTarget(null);
       fetchQuestions();
     } catch (err) {
       showToast(typeof err === "string" ? err : "Delete failed", "error");
+    }
+  };
+
+  // enable / disable / restore -> refresh list so badge + buttons match server
+  const handleStatusAction = async (
+    q: QuestionRow,
+    action: "enable" | "disable" | "restore"
+  ) => {
+    try {
+      if (action === "enable") await enableQuestion(q._id);
+      else if (action === "disable") await disableQuestion(q._id);
+      else await restoreQuestion(q._id);
+      showToast(
+        action === "restore"
+          ? "Restored as disabled. Enable it to use it in games."
+          : action === "enable"
+          ? "Question enabled"
+          : "Question disabled",
+        "success"
+      );
+      fetchQuestions();
+    } catch (err) {
+      showToast(typeof err === "string" ? err : `${action} failed`, "error");
     }
   };
 
@@ -176,17 +236,37 @@ export default function QuestionList() {
                   }}
                 />
               </div>
-              <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 pb-3">
-                <input
-                  type="checkbox"
-                  checked={showInactive}
-                  onChange={(e) => {
+              <div className="w-40">
+                <Select
+                  key={`symbol-${symbol}`}
+                  placeholder="Symbol"
+                  defaultValue={symbol}
+                  options={[{ value: "", label: "All symbols" }, ...symbolOptions]}
+                  onChange={(v) => {
                     setPage(1);
-                    setShowInactive(e.target.checked);
+                    setSymbol(v);
                   }}
                 />
-                Show deleted
-              </label>
+              </div>
+              <div className="flex gap-1 pb-1">
+                {statusTabs.map((t) => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() => {
+                      setPage(1);
+                      setStatus(t.value);
+                    }}
+                    className={`px-3 py-2 text-sm rounded-lg border ${
+                      status === t.value
+                        ? "bg-brand-500 text-white border-brand-500"
+                        : "text-gray-600 border-gray-200 dark:text-gray-300 dark:border-gray-700"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="flex gap-2">
@@ -212,8 +292,10 @@ export default function QuestionList() {
           </div>
 
           <p className="text-xs text-gray-400 dark:text-gray-500 -mt-3">
-            Importing an Excel file always adds new questions — it never
-            overwrites existing rows, even if the question key matches.
+            Importing adds new questions and updates existing ones (same
+            symbol + input 1 + input 2) when any field differs. Updates
+            cannot be undone. Import never enables a question; deleted
+            questions are skipped.
           </p>
 
           {/* Table */}
@@ -231,7 +313,7 @@ export default function QuestionList() {
                     "Answer",
                     "Symbol",
                     "Final Lvl",
-                    "Active",
+                    "Status",
                     "Actions",
                   ].map((h) => (
                     <TableCell
@@ -290,38 +372,84 @@ export default function QuestionList() {
                       <TableCell className="px-4 py-3 text-sm">
                         <span
                           className={`px-2 py-0.5 rounded-full text-xs ${
-                            q.active
-                              ? "bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400"
-                              : "bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400"
+                            (statusBadge[q.status] || statusBadge.disabled).cls
                           }`}
                         >
-                          {q.active ? "Active" : "Deleted"}
+                          {(statusBadge[q.status] || statusBadge.disabled).label}
                         </span>
                       </TableCell>
-                      <TableCell className="px-4 py-3 text-sm whitespace-nowrap space-x-2">
-                        <button
-                          className="text-brand-500 hover:underline"
-                          onClick={() => {
-                            setEditingId(q._id);
-                            setFormOpen(true);
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="text-brand-500 hover:underline"
-                          onClick={() => setAnalyticsId(q._id)}
-                        >
-                          Analytics
-                        </button>
-                        {q.active && (
-                          <button
-                            className="text-error-500 hover:underline"
-                            onClick={() => setDeleteTarget(q)}
-                          >
-                            Delete
-                          </button>
-                        )}
+                      <TableCell className="px-4 py-3 text-sm whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          {q.status === "deleted" ? (
+                            <button
+                              className="text-brand-500 hover:underline"
+                              onClick={() => handleStatusAction(q, "restore")}
+                            >
+                              Restore
+                            </button>
+                          ) : (
+                            <>
+                              {/* toggle: on = enabled. Level 0 cannot be enabled */}
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={q.status === "enabled"}
+                                title={
+                                  q.status === "enabled"
+                                    ? "Disable"
+                                    : q.finalLevel > 0
+                                    ? "Enable"
+                                    : "Set Final Level above 0 to enable"
+                                }
+                                disabled={q.status !== "enabled" && q.finalLevel <= 0}
+                                onClick={() =>
+                                  handleStatusAction(
+                                    q,
+                                    q.status === "enabled" ? "disable" : "enable"
+                                  )
+                                }
+                                className={`relative h-6 w-11 shrink-0 rounded-full transition duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${
+                                  q.status === "enabled"
+                                    ? "bg-brand-500"
+                                    : "bg-gray-200 dark:bg-white/10"
+                                }`}
+                              >
+                                <span
+                                  className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-theme-sm transition duration-150 ${
+                                    q.status === "enabled" ? "translate-x-5" : "translate-x-0"
+                                  }`}
+                                />
+                              </button>
+                              <button
+                                title="Edit"
+                                aria-label="Edit"
+                                className="text-gray-500 hover:text-brand-500 dark:text-gray-400"
+                                onClick={() => {
+                                  setEditingId(q._id);
+                                  setFormOpen(true);
+                                }}
+                              >
+                                <PencilIcon className="size-5" />
+                              </button>
+                              <button
+                                title="Analytics"
+                                aria-label="Analytics"
+                                className="text-gray-500 hover:text-brand-500 dark:text-gray-400"
+                                onClick={() => setAnalyticsId(q._id)}
+                              >
+                                <PieChartIcon className="size-5" />
+                              </button>
+                              <button
+                                title="Delete"
+                                aria-label="Delete"
+                                className="text-error-500 hover:text-error-600"
+                                onClick={() => setDeleteTarget(q)}
+                              >
+                                <TrashBinIcon className="size-5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -379,7 +507,7 @@ export default function QuestionList() {
         <QuestionImportModal
           onClose={() => setImportOpen(false)}
           onImported={() => {
-            setImportOpen(false);
+            // keep modal open so the admin can read the import result
             fetchQuestions();
           }}
         />
@@ -387,7 +515,7 @@ export default function QuestionList() {
 
       <ConfirmDelete
         open={!!deleteTarget}
-        message="Delete this question? It will no longer appear in games. All historical analytics are preserved."
+        message="Delete this question? It is disabled and hidden from the normal list. You can restore it later (comes back disabled)."
         onCancel={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
       />

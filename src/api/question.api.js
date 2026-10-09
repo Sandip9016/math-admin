@@ -6,7 +6,8 @@ import api from "./questionAxiosInstance";
 
 /**
  * Get paginated / filtered question list
- * @param {Object} params - { page, limit, search, difficulty, finalLevel, symbol, active }
+ * @param {Object} params - { page, limit, search, difficulty, finalLevel, symbol, status }
+ * status: enabled | disabled | deleted | all (omit = enabled + disabled)
  */
 export const getQuestions = (params = {}) => {
   return api.get("/admin/questions", { params });
@@ -38,17 +39,31 @@ export const updateQuestion = (id, payload) => {
 };
 
 /**
- * Soft delete (deactivate) a question
+ * Delete a question (status -> deleted, also disabled)
  */
 export const deleteQuestion = (id) => {
   return api.delete(`/admin/questions/${id}`);
 };
 
 /**
- * Restore a soft-deleted question
+ * Restore a deleted question (comes back as disabled)
  */
 export const restoreQuestion = (id) => {
-  return api.put(`/admin/questions/${id}`, { active: true });
+  return api.post(`/admin/questions/${id}/restore`);
+};
+
+/**
+ * Enable a question (live in games). 400 if finalLevel is 0, 409 if deleted.
+ */
+export const enableQuestion = (id) => {
+  return api.post(`/admin/questions/${id}/enable`);
+};
+
+/**
+ * Disable a question (out of games). 409 if deleted.
+ */
+export const disableQuestion = (id) => {
+  return api.post(`/admin/questions/${id}/disable`);
 };
 
 // ============================================
@@ -69,9 +84,8 @@ export const getQuestionAnalytics = (id) => {
 export const importQuestions = (file) => {
   const formData = new FormData();
   formData.append("file", file);
-  return api.post("/admin/questions/import", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  // Do not set Content-Type: the browser adds it with the multipart boundary.
+  return api.post("/admin/questions/import", formData);
 };
 
 /**
