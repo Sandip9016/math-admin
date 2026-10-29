@@ -45,7 +45,7 @@ const Calendar: React.FC = () => {
       {
         id: "2",
         title: "Meeting",
-        start: new Date(Date.now() + 86400000).toISOString().split("T")[0],
+        start: new Date(Date.now() + 86300000).toISOString().split("T")[0],
         extendedProps: { calendar: "Success" },
       },
       {

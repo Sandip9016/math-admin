@@ -39,7 +39,7 @@ import { getToken, handleAuthError } from "./authSession";
 
 const axiosInstance = axios.create({
   baseURL:
-    import.meta.env.VITE_API_URL || "http://13.203.232.239:3000/api",
+    import.meta.env.VITE_API_URL || "http://43.204.228.107:3000/api",
   timeout: 300000,
   headers: {
     "Content-Type": "application/json",

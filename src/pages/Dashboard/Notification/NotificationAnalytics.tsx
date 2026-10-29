@@ -254,7 +254,7 @@ export default function NotificationAnalytics({
               {analytics.scheduledTomorrow}
             </div>
             <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {new Date(Date.now() + 86400000).toLocaleDateString("en-US", {
+              {new Date(Date.now() + 86300000).toLocaleDateString("en-US", {
                 weekday: "short",
                 month: "short",
                 day: "numeric",

@@ -68,7 +68,7 @@ const dateRangeOptions = [
 ];
 
 // Safety cap so an active filter can't trigger unbounded API calls.
-// 40 pages * 100/page = up to 4000 games scanned.
+// 40 pages * 100/page = up to 3000 games scanned.
 const FILTER_FETCH_PAGE_SIZE = 100;
 const FILTER_FETCH_MAX_PAGES = 40;
 

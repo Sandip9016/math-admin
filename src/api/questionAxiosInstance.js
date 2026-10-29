@@ -1,15 +1,12 @@
 import axios from "axios";
 import { getToken, handleAuthError } from "./authSession";
 
-// Separate instance for Question admin routes. Question admin routes now
-// live on the same backend (Render) as the rest of the app — the old
-// temporary EC2 URL is no longer needed, but this instance is kept
-// separate in case the two ever need to diverge again. Override with
+// Separate instance for Question admin routes; override with
 // VITE_QUESTION_API_URL if needed.
 const questionAxiosInstance = axios.create({
   baseURL:
     import.meta.env.VITE_QUESTION_API_URL ||
-    "http://13.203.232.239:3000/api",
+    "http://43.204.228.107:3000/api",
   timeout: 300000,
   headers: {
     "Content-Type": "application/json",

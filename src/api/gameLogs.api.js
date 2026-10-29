@@ -25,7 +25,7 @@ export const getGameLogDetail = (type, validateId) => {
  */
 export const getGameLogDownloadUrl = (playerId, type, validateId) => {
   const baseUrl =
-    import.meta.env.VITE_API_URL || "http://13.203.232.239:3000/api";
+    import.meta.env.VITE_API_URL || "http://43.204.228.107:3000/api";
   return `${baseUrl}/gameValidation/${encodeURIComponent(
     playerId
   )}/download/${encodeURIComponent(type)}/${encodeURIComponent(validateId)}`;
